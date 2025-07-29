@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Server Logs</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #23272e;
+            color: #ddd;
+        }
+
+        h1 {
+            color: #86b7fe;
+        }
+
+        #logs {
+            max-width: 1200px;
+            max-height: 90vh;
+            margin: 10px auto;
+            padding: 10px;
+            overflow-y: auto;
+            background: #181c23;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #0003;
+        }
+
+        .logline {
+            border-bottom: 1px solid #2c3140;
+            padding: 2px 4px;
+            white-space: pre;
+        }
+
+        .logline.INFO {
+            color: #52b788;
+        }
+
+        .logline.ERROR {
+            color: #e85d75;
+            font-weight: bold;
+        }
+
+        .logline.WARNING {
+            color: #ffd166;
+        }
+
+        .logline.DEBUG {
+            color: #7ad7f0;
+        }
+
+        #controls {
+            margin: 8px auto;
+            text-align: center;
+        }
+
+        button {
+            background: #86b7fe;
+            border: none;
+            color: #23272e;
+            padding: 6px 20px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:active {
+            background: #6390be;
+        }
+
+        label {
+            margin-left: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Server Logs</h1>
+    <div id="controls">
+        <button onclick="refreshLogs()">Refresh</button>
+        <button onclick="downloadLogs()">Download</button>
+        <button onclick="purgeLogs()">Purge Logs</button>
+        <label>
+            <input type="checkbox" id="autorefresh" onchange="toggleAutoRefresh()">
+            Auto-refresh (5s)
+        </label>
+    </div>
+    <div id="logs">Loading…</div>
+    <script>
+        let autoRefreshInterval = null;
+
+        function fetchAndRenderLogs() {
+            const container = document.getElementById('logs');
+            container.textContent = "Loading…";
+            fetch('/careergpt-backend/logs?lines=100')
+                .then(resp => {
+                    if (!resp.ok) throw new Error("HTTP " + resp.status);
+                    return resp.json();
+                })
+                .then(data => {
+                    container.innerHTML = "";
+                    if (!data.log || !data.log.length) {
+                        container.textContent = "No log data available.";
+                        return;
+                    }
+                    data.log.forEach(line => {
+                        const div = document.createElement('div');
+                        if (line.includes(' - ERROR')) div.className = 'logline ERROR';
+                        else if (line.includes(' - WARNING')) div.className = 'logline WARNING';
+                        else if (line.includes(' - INFO')) div.className = 'logline INFO';
+                        else if (line.includes(' - DEBUG')) div.className = 'logline DEBUG';
+                        else div.className = 'logline';
+                        div.textContent = line;
+                        container.appendChild(div);
+                    });
+                })
+                .catch(err => {
+                    container.textContent = "Failed to load logs: " + err;
+                });
+        }
+
+        function refreshLogs() {
+            fetchAndRenderLogs();
+        }
+
+        function downloadLogs() {
+
+
+            fetch('/careergpt-backend/logs/download')
+                .then(resp => resp.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'app.log';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                });
+        }
+        function purgeLogs() {
+            if (!confirm('Are you sure you want to delete all logs? This cannot be undone.')) return;
+            fetch('/careergpt-backend/logs/purge', { method: 'POST' })
+                .then(resp => resp.json())
+                .then(data => {
+                    alert(data.message || data.status || 'Logs purged.');
+                    refreshLogs();
+                })
+                .catch(err => alert('Failed to purge logs: ' + err));
+        }
+
+        function toggleAutoRefresh() {
+            const box = document.getElementById('autorefresh');
+            if (box.checked) {
+                autoRefreshInterval = setInterval(fetchAndRenderLogs, 5000);
+            } else {
+                if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            }
+        }
+
+        // Initial load
+        fetchAndRenderLogs();
+    </script>
+</body>
+
+</html>

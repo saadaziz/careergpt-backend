@@ -1,164 +1,140 @@
-
-## **1. `.gitignore`**
-
-```gitignore
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.env
-venv/
-env/
-
-# Logs
-stderr.log
-startup.log
-
-# IDE / OS files
-.DS_Store
-.idea/
-.vscode/
-```
-
----
-
-## **2. README.md (Final)**
-
-*(Already prepared, but now includes roadmap section)*
-
-```markdown
 # CareerGPT Backend
 
-CareerGPT is a **FastAPI-based backend** hosted on DomainRacer (cPanel). It powers the CareerGPT UI by analyzing job titles with OpenAI and is structured for future growth (security, profiles, and body of knowledge).
+CareerGPT is a **Flask-based backend** designed for robust, cloud-friendly deployment (cPanel/Passenger) and real-time logging/monitoring. It analyzes job titles using OpenAI and is built for future growth with security and body of knowledge integration.
 
 ---
 
-## Features (Current)
-- FastAPI backend running on cPanel (WSGI compatibility via custom adapter).
+## Features
+
+- Flask backend running on cPanel (WSGI-compatible).
 - Root endpoint (`/`) for health checks.
-- `/logs` endpoint for **real-time log viewing** (auto-refresh, styled terminal view).
-- Centralized logging to `stderr` (captured by cPanel).
+- `/analyze` endpoint for job data analysis.
+- `/config` endpoint to view and update runtime YAML config.
+- `/logs` endpoint for **real-time viewing** (auto-refresh and download supported).
+- Centralized logging to `stderr` (no local log file needed).
 
 ---
 
-## Planned Features / Roadmap
-**Phase 1**  
-- `/demo` POST endpoint for UI → backend integration.
+## Roadmap
 
-**Phase 2**  
-- Security layer (origin check or API token).  
-- User profiles and JWT authentication.
+**Phase 1**
+- `GET /` — Health/status with logging
+- `POST /analyze` — Analyze input and show config snapshot
+- `GET /config` — View YAML config (live)
+- `POST /config` — Update YAML config (with logging/validation)
+- `/logs` — Real-time log view (download only if permissions allow; purge not recommended for stderr logs)
 
-**Phase 3**  
-- Body of Knowledge (ChromaDB + embeddings) integration.  
-- Admin dashboard for logs and analytics.
+```cmd
+For example:
+curl -X POST "https://aurorahours.com/careergpt-backend/analyze" -H "Content-Type: application/json" -d "{\"job_title\": \"Software Engineer\", \"location\": \"Remote\"}"
+
+```
+**Phase 2**
+- Security: origin checks or API tokens
+- User profiles and JWT authentication
+
+**Phase 3**
+- Body of Knowledge: ChromaDB + embeddings
+- Admin dashboard for logs and analytics
 
 ---
 
 ## Project Structure
+
 ```
-
 careergpt-backend/
-│
 ├── app/
-│   └── main.py          # FastAPI entrypoint (routes, logging)
-├── passenger\_wsgi.py    # ASGI → WSGI wrapper for cPanel
-├── requirements.txt     # Dependencies
-├── CHANGELOG.md         # Development history
-└── README.md            # This file
-
-````
+│   ├── main.py           # Flask app (routes, config, logging)
+│   └── static/
+│       └── logs.html     # Web UI for logs
+├── passenger_wsgi.py     # WSGI entrypoint for cPanel
+├── requirements.txt      # Dependencies
+├── CHANGELOG.md          # Dev history
+├── README.md             # This file
+└── stderr.log            # stderr output (created by server, gitignored)
+```
 
 ---
 
 ## Setup Instructions
 
 ### Local Development
-1. Clone repo:
-   ```bash
-   git clone https://github.com/<your-username>/careergpt-backend.git
-   cd careergpt-backend
-````
 
-2. Create virtual environment:
+1. **Clone the repo:**
+    ```bash
+    git clone https://github.com/<your-username>/careergpt-backend.git
+    cd careergpt-backend
+    ```
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-3. Install dependencies:
+2. **Create virtual environment:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
 
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run locally:
+3. **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-   ```bash
-   uvicorn app.main:app --reload
-   ```
+4. **Run locally:**
+    ```bash
+    FLASK_APP=app/main.py flask run
+    ```
 
 ---
 
-### Deployment (DomainRacer cPanel)
+### Deployment (cPanel / Passenger)
 
-1. **Upload files** to application root (e.g., `/home/<username>/careergpt_dev/`).
-2. **Create Python App** in cPanel:
-
-   * Python version: 3.9.20
-   * Application root: `careergpt_dev`
-   * Startup file: `passenger_wsgi.py`
-   * Entry point: `application`
-3. **Install dependencies** via cPanel:
-
-   ```bash
-   pip install -r requirements.txt --user
-   ```
-4. **Set environment variables** (e.g., `OPENAI_API_KEY`) via cPanel.
-5. **Restart App** and visit:
-
-   * Health: `https://aurorahours.com/careergpt_dev/`
-   * Logs: `https://aurorahours.com/careergpt_dev/logs`
+1. **Upload all files** to the app root (e.g., `/home/<username>/careergpt-backend/`)
+2. **Create a Python App** in cPanel:
+    - Python version: 3.9+
+    - Application root: `careergpt-backend`
+    - Startup file: `passenger_wsgi.py`
+    - Entry point: `application`
+3. **Install dependencies**:
+    ```bash
+    pip install -r requirements.txt --user
+    ```
+4. **Set environment variables** (like `OPENAI_API_KEY`) in cPanel.
+5. **Restart app** and test:
+    - Health: `https://aurorahours.com/careergpt-backend/`
+    - Logs: `https://aurorahours.com/careergpt-backend/logs`
 
 ---
 
 ## Development Notes
 
-* All logs are written to `stderr` (captured by cPanel).
-* `/logs` auto-refreshes every 5 seconds for debugging.
-* Future phases will integrate authentication and ChromaDB-based BoK.
+- All logs are written to **stderr** (managed by cPanel/Passenger; not a file in the repo)
+- `/logs` supports tailing real-time logs (default: last 100 lines)
+- Download works if Flask can read the actual `stderr.log` file
+- **Purging logs is not supported** (for server reliability)
+- Next steps: authentication, ChromaDB/BoK, admin analytics
 
 ---
 
 ## Changelog
 
-See [CHANGELOG.md](./CHANGELOG.md) for detailed development history.
-
-````
+See [CHANGELOG.md](./CHANGELOG.md) for detailed dev history.
 
 ---
 
-## **3. Commit Commands (First Push)**
-
-Run this in your local project folder:
+## First-time Commit
 
 ```bash
-# Initialize repo
 git init
 git add .
-git commit -m "Initial FastAPI setup: WSGI adapter, logging system, and logs UI"
-
-# Add remote (replace with your GitHub repo URL)
+git commit -m "Initial Flask setup: WSGI, stderr logging, and logs UI"
 git remote add origin https://github.com/<your-username>/careergpt-backend.git
-
-# Push to main branch
 git branch -M main
 git push -u origin main
-````
+```
 
 ---
 
-### **Next Steps**
+## Next Steps
 
-* Confirm `logs` endpoint works in production.
-* Begin Phase 1: Add `/demo` endpoint for UI → backend connection.
-* Document `/demo` API spec in README.
+- [ ] Confirm `/logs` endpoint works in production (test download if needed)
+- [ ] Add `/demo` endpoint for UI/backend integration
+- [ ] Document `/demo` API spec here
+
