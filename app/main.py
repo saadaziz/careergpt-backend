@@ -1,6 +1,9 @@
 import logging
 from flask import Flask, request, jsonify
 import os
+os.environ['TZ'] = 'America/Los_Angeles'
+import time
+time.tzset()
 import yaml
 from datetime import datetime
 import tailer
